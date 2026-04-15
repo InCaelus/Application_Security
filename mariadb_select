@@ -1,0 +1,59 @@
+import pymysql
+import sys
+
+# MariaDB 접속 정보
+DB_HOST = "192.168.100.20"
+DB_USER = "cjulib"
+DB_PASS = "security"
+DB_PORT = 3306
+DB_NAME = "cju"
+
+try:
+    conn = pymysql.connect(
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASS,
+        port=DB_PORT,
+        database=DB_NAME,
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor
+    )
+    
+    with conn.cursor() as cursor:
+        sql = """
+            SELECT 
+                g.id_grade, 
+                m.name, 
+                m.id AS user_id, 
+                g.subject, 
+                g.score, 
+                g.term, 
+                DATE_FORMAT(g.reg_date, '%Y-%m-%d') AS reg_date
+            FROM grades g
+            JOIN member m ON g.member_seq = m.seq
+            ORDER BY g.id_grade ASC
+        """
+        
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+
+        print("--- [ 성적 전체 목록 ] ---")
+        print(f"{'번호':<3} | {'이름(ID)':<12} | {'과목명':<16} | {'점수':<3} | {'학기':<6} | {'등록일'}")
+        print("-" * 75)
+
+        if not rows:
+            print("등록된 성적 데이터가 없습니다.")
+        else:
+            for row in rows:
+                name_id = f"{row['name']}({row['user_id']})"
+                print(f"{row['id_grade']:<4} | {name_id:<13} | {row['subject']:<18} | {row['score']:<4} | {row['term']:<6} | {row['reg_date']}")
+
+        print("-" * 75)
+
+except pymysql.MySQLError as e:
+    print(f"데이터베이스 조회 오류: {e}")
+    sys.exit(1)
+
+finally:
+    if 'conn' in locals() and conn.open:
+        conn.close()

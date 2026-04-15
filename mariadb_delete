@@ -1,0 +1,57 @@
+import pymysql
+import sys
+
+DB_HOST = "192.168.100.20"
+DB_USER = "cjulib"
+DB_PASS = "security"
+DB_PORT = 3306
+DB_NAME = "cju"
+
+try:
+    conn = pymysql.connect(
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASS,
+        port=DB_PORT,
+        database=DB_NAME,
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor
+    )
+    
+    with conn.cursor() as cursor:
+        choice = input("삭제할 성적의 고유 ID(id_grade) 입력: ")
+
+        check_sql = "SELECT subject FROM grades WHERE id_grade = %s"
+        cursor.execute(check_sql, (choice,))
+        result = cursor.fetchone()
+
+        if not result:
+            print(f"\n[시스템] {choice}번 데이터가 존재하지 않습니다.")
+            sys.exit(0)
+
+        subject_name = result['subject']
+
+        true_false = input(f"정말로 삭제하시겠습니까? (Y/N): ").upper()
+        
+        if true_false == 'Y':
+            delete_sql = "DELETE FROM grades WHERE id_grade = %s"
+            affected_rows = cursor.execute(delete_sql, (choice,))
+            
+            conn.commit()
+
+            if affected_rows > 0:
+                print(f"\n[시스템] {choice}번 성적 데이터가 삭제되었습니다. (대상: {subject_name})")
+            else:
+                print(f"\n[시스템] 삭제에 실패했습니다.")
+        else:
+            print("\n[시스템] 삭제가 취소되었습니다.")
+
+except pymysql.MySQLError as e:
+    if 'conn' in locals():
+        conn.rollback()
+    print(f"데이터베이스 오류: {e}")
+    sys.exit(1)
+
+finally:
+    if 'conn' in locals() and conn.open:
+        conn.close()

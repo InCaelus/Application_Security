@@ -1,0 +1,60 @@
+import pymysql
+import sys
+
+DB_HOST = "192.168.100.20"
+DB_USER = "cjulib"
+DB_PASS = "security"
+DB_PORT = 3306
+DB_NAME = "cju"
+
+try:
+    conn = pymysql.connect(
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASS,
+        port=DB_PORT,
+        database=DB_NAME,
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor
+    )
+    
+    with conn.cursor() as cursor:
+        id_grade_input = input("수정할 성적의 고유 ID(id_grade) 입력: ")
+
+        select_sql = """
+            SELECT m.name AS student_name, g.subject, g.score 
+            FROM grades g
+            JOIN member m ON g.member_seq = m.seq
+            WHERE g.id_grade = %s
+        """
+
+        cursor.execute(select_sql, (id_grade_input,))
+        current_data = cursor.fetchone()
+
+        if not current_data:
+            print(f"\n[오류] 성적 ID {id_grade_input}번 데이터를 찾을 수 없습니다.")
+            sys.exit(1)
+
+        student_name = current_data['student_name']
+        subject = current_data['subject']
+        old_score = current_data['score']
+
+        print(f"--- 현재 정보: {student_name} 학생 / {subject} ({old_score}점) ---")
+        new_score = input("- 수정할 점수 입력: ")
+
+        update_sql = "UPDATE grades SET score = %s WHERE id_grade = %s"
+        cursor.execute(update_sql, (new_score, id_grade_input))
+
+        conn.commit()
+        
+        print(f"\n[시스템] 성적 수정이 완료되었습니다. ({old_score}점 -> {new_score}점)")
+
+except pymysql.MySQLError as e:
+    if 'conn' in locals():
+        conn.rollback()
+    print(f"오류 발생: {e}")
+    sys.exit(1)
+
+finally:
+    if 'conn' in locals() and conn.open:
+        conn.close()

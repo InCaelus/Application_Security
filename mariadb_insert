@@ -1,0 +1,57 @@
+import pymysql
+import sys
+
+# MariaDB 접속 정보
+DB_HOST = "192.168.100.20"
+DB_USER = "cjulib"
+DB_PASS = "security"
+DB_PORT = 3306
+DB_NAME = "cju"
+
+try:
+    conn = pymysql.connect(
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASS,
+        port=DB_PORT,
+        database=DB_NAME,
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor
+    )
+    
+    with conn.cursor() as cursor:
+        print("--- [ 성적 데이터 추가 ] ---")
+        student_seq = input("- 학생 번호(seq) 입력: ")
+        lecture_name = input("- 과목명 입력: ")
+        score = input("- 점수 입력: ")
+        term = input("- 학기 입력(예: 2026-1): ")
+
+        insert_sql = "INSERT INTO grades (member_seq, subject, score, term) VALUES (%s, %s, %s, %s)"
+        cursor.execute(insert_sql, (student_seq, lecture_name, score, term))
+        
+        select_sql = """
+            SELECT m.name 
+            FROM member m 
+            JOIN grades g ON m.seq = g.member_seq 
+            WHERE m.seq = %s 
+            LIMIT 1
+        """
+        cursor.execute(select_sql, (student_seq,))
+        result = cursor.fetchone()
+        
+        student_name = result['name'] if result else "알 수 없는"
+
+        conn.commit()
+        
+        print(f"\n[시스템] '{student_name}' 학생의 '{lecture_name}' 성적이 성공적으로 등록되었습니다.")
+
+except pymysql.MySQLError as e:
+    if 'conn' in locals():
+        conn.rollback()
+    print(f"오류 발생: {e}")
+    sys.exit(1)
+
+finally:
+    if 'conn' in locals() and conn.open:
+        conn.close()
+        print("\n연결 종료.")

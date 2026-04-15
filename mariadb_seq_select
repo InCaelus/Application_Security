@@ -1,0 +1,63 @@
+import pymysql
+import sys
+
+DB_HOST = "192.168.100.20"
+DB_USER = "cjulib"
+DB_PASS = "security"
+DB_PORT = 3306
+DB_NAME = "cju"
+
+try:
+    conn = pymysql.connect(
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASS,
+        port=DB_PORT,
+        database=DB_NAME,
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor
+    )
+    
+    with conn.cursor() as cursor:
+        student_seq = input("조회할 학생 번호(seq) 입력: ")
+
+        sql = """
+            SELECT m.name, m.id AS user_id, g.subject, g.score, g.term
+            FROM member m
+            JOIN grades g ON m.seq = g.member_seq
+            WHERE m.seq = %s
+        """
+        
+        cursor.execute(sql, (student_seq,))
+        results = cursor.fetchall()
+
+        if not results:
+            print(f"\n[알림] 학생 번호 {student_seq}번에 해당하는 성적 데이터가 없습니다.")
+            sys.exit(0)
+
+        student_name = results[0]['name']
+        user_id = results[0]['user_id']
+        term = results[0]['term']
+
+        print(f"\n--- [ {student_name} 학생의 성적 리포트 ] ---")
+        print(f"- 아이디: {user_id}")
+        print(f"- 학기: {term}")
+        print("-" * 27)
+
+        total_score = 0
+        for idx, row in enumerate(results, 1):
+            print(f"{idx}. {row['subject']}: {row['score']}점")
+            total_score += row['score']
+
+        average_score = total_score / len(results)
+
+        print("-" * 27)
+        print(f"평균 점수: {average_score:.1f}점")
+
+except pymysql.MySQLError as e:
+    print(f"데이터베이스 오류: {e}")
+    sys.exit(1)
+
+finally:
+    if 'conn' in locals() and conn.open:
+        conn.close()

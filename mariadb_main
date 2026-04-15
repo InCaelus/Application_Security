@@ -1,0 +1,147 @@
+import pymysql
+import sys
+
+DB_HOST = "192.168.100.20"
+DB_USER = "cjulib"
+DB_PASS = "security"
+DB_PORT = 3306
+DB_NAME = "cju"
+
+def get_connection():
+    return pymysql.connect(
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASS,
+        port=DB_PORT,
+        database=DB_NAME,
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor
+    )
+
+def select_all():
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            sql = "SELECT * FROM member"
+            cursor.execute(sql)
+            result = cursor.fetchall()
+
+            print(f"\n--- member 테이블 조회 결과 (총 {len(result)}건) ---")
+            if result:
+                for row in result:
+                    print(f"[번호: {row['seq']}] ID: {row['id']}, 이름: {row['name']}, PW: {row['pass']}")
+            else:
+                print("데이터가 없습니다.")
+    except pymysql.MySQLError as e:
+        print(f"조회 중 오류 발생: {e}")
+    finally:
+        conn.close()
+
+def select_one():
+    target_seq = input("조회할 번호(seq) 입력: ")
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            sql = "SELECT * FROM member WHERE seq = %s"
+            cursor.execute(sql, (target_seq,))
+            row = cursor.fetchone()
+
+            if row:
+                print(f"\n[조회 결과] 번호: {row['seq']}, ID: {row['id']}, 이름: {row['name']}")
+            else:
+                print(f"\n알림: 번호 {target_seq}에 해당하는 데이터가 없습니다.")
+    except pymysql.MySQLError as e:
+        print(f"조회 중 오류 발생: {e}")
+    finally:
+        conn.close()
+
+def insert_member():
+    new_id = input("아이디: ")
+    new_pass = input("비밀번호: ")
+    new_name = input("이름: ")
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            sql = "INSERT INTO member (id, pass, name) VALUES (%s, %s, %s)"
+            cursor.execute(sql, (new_id, new_pass, new_name))
+            conn.commit()
+            print(f"\n성공적으로 '{new_name}'님의 정보를 추가했습니다.")
+    except pymysql.MySQLError as e:
+        conn.rollback()
+        print(f"추가 중 오류 발생: {e}")
+    finally:
+        conn.close()
+
+def delete_member():
+    target_seq = input("삭제할 번호(seq) 입력: ")
+    
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            sql = "DELETE FROM member WHERE seq = %s"
+            affected_rows = cursor.execute(sql, (target_seq,))
+            conn.commit()
+            
+            if affected_rows > 0:
+                print(f"성공: 번호 {target_seq}인 데이터를 삭제했습니다.")
+            else:
+                print(f"알림: 번호 {target_seq}인 데이터가 존재하지 않습니다.")
+    except pymysql.MySQLError as e:
+        conn.rollback()
+        print(f"삭제 중 오류 발생: {e}")
+    finally:
+        conn.close()
+
+def update_member():
+    target_seq = input("수정할 번호(seq) 입력: ")
+    new_name = input("변경할 이름 입력: ")
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            sql = "UPDATE member SET name = %s WHERE seq = %s"
+            affected_rows = cursor.execute(sql, (new_name, target_seq))
+            conn.commit()
+            
+            if affected_rows > 0:
+                print(f"성공: 번호 {target_seq}의 이름을 '{new_name}'으로 수정했습니다.")
+            else:
+                print(f"알림: 번호 {target_seq}를 찾을 수 없습니다.")
+    except pymysql.MySQLError as e:
+        conn.rollback()
+        print(f"수정 중 오류 발생: {e}")
+    finally:
+        conn.close()
+
+def main_menu():
+    while True:
+        print("\n--- [ 회원 관리 시스템 ] ---")
+        print("1. 전체조회")
+        print("2. 번호조회")
+        print("3. 데이터 추가")
+        print("4. 데이터 삭제")
+        print("5. 이름 수정")
+        print("6. 종료")
+        print("---------------------------")
+        
+        choice = input("메뉴 선택: ")
+        
+        if choice == '1':
+            select_all()
+        elif choice == '2':
+            select_one()
+        elif choice == '3':
+            insert_member()
+        elif choice == '4':
+            delete_member()
+        elif choice == '5':
+            update_member()
+        elif choice == '6':
+            print("프로그램을 종료합니다.")
+            break
+        else:
+            print("잘못된 선택입니다. 다시 입력해주세요.")
+
+if __name__ == "__main__":
+    main_menu()
